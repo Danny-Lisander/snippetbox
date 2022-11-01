@@ -28,10 +28,10 @@ func main() {
 	infoLog := log.New(os.Stdout, "INFO\t", log.Ldate|log.Ltime)
 	errorLog := log.New(os.Stderr, "ERROR\t", log.Ldate|log.Ltime|log.Lshortfile)
 
-	connString := "postgres://web:789@localhost:5432/snippetbox"
+	connString := "postgres://web:Danalex4610@localhost:5432/snippetbox"
 	conn, err := openDB(connString)
 
-	//conn, err := pgx.Connect(context.Background(), "postgres://web:789@localhost:5432/snippetbox")
+	//conn, err := pgx.Connect(context.Background(), "postgres://web:Danalex4610@localhost:5432/snippetbox")
 	if err != nil {
 		errorLog.Fatalf("\nUnable to connection to database: %v\n", err)
 	}
