@@ -3,34 +3,36 @@ package main
 import (
 	"context"
 	"flag"
+	"github.com/alexedwards/scs/pgxstore"
+	"github.com/alexedwards/scs/v2"
+	"github.com/go-playground/form/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"html/template"
 	"log"
 	"net/http"
 	"os"
 	"snippetbox.dany.net/internal/models"
+	"time"
 )
 
 type application struct {
-	errorLog      *log.Logger
-	infoLog       *log.Logger
-	snippets      *models.SnippetModel
-	templateCache map[string]*template.Template
+	errorLog       *log.Logger
+	infoLog        *log.Logger
+	snippets       *models.SnippetModel
+	templateCache  map[string]*template.Template
+	formDecoder    *form.Decoder
+	sessionManager *scs.SessionManager
 }
 
-var ctx = context.Background()
-
 func main() {
-	var err error
-
 	addr := flag.String("addr", "localhost:4000", "HTTP network address")
+	dsn := flag.String("dsn", "postgres://postgres:Danalex4610@localhost:5432/snippetbox", "Postgres data source name")
 	flag.Parse()
+
 	infoLog := log.New(os.Stdout, "INFO\t", log.Ldate|log.Ltime)
 	errorLog := log.New(os.Stderr, "ERROR\t", log.Ldate|log.Ltime|log.Lshortfile)
 
-	connString := "postgres://postgres:Danalex4610@localhost:5432/snippetbox"
-	conn, err := openDB(connString)
-
+	conn, err := openDB(*dsn)
 	if err != nil {
 		errorLog.Fatalf("\nUnable to connection to database: %v\n", err)
 	}
@@ -43,13 +45,21 @@ func main() {
 		errorLog.Fatal(err)
 	}
 
+	formDecoder := form.NewDecoder()
+
+	sessionManager := scs.New()
+	sessionManager.Store = pgxstore.New(conn)
+	sessionManager.Lifetime = 12 * time.Hour
+
 	app := &application{
 		errorLog: errorLog,
 		infoLog:  infoLog,
 		snippets: &models.SnippetModel{
 			DB: conn,
 		},
-		templateCache: templateCache,
+		templateCache:  templateCache,
+		formDecoder:    formDecoder,
+		sessionManager: sessionManager,
 	}
 
 	srv := &http.Server{
@@ -63,9 +73,9 @@ func main() {
 	errorLog.Fatal(err)
 }
 
-func openDB(connString string) (*pgxpool.Pool, error) {
+func openDB(dsn string) (*pgxpool.Pool, error) {
+	db, err := pgxpool.Connect(context.Background(), dsn)
 
-	db, err := pgxpool.Connect(ctx, connString)
 	if err != nil {
 		return nil, err
 	}
